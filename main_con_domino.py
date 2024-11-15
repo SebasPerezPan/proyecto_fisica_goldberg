@@ -1,5 +1,3 @@
-
-# Online Python - IDE, Editor, Compiler, Interpreter
 import pygame
 import pymunk
 import sys
@@ -12,8 +10,8 @@ pygame.init()
 WIDTH = 1000
 HEIGHT = 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Máquina de Goldberg - Simulación Mejorada")
-clock = pygame.time.Clock()
+pygame.display.set_caption("Máquina de Goldberg - Simulación con Dominós")
+
 
 # Configuración del espacio físico
 space = pymunk.Space()
@@ -208,26 +206,33 @@ class SimulacionGoldberg:
     def dibujar(self, screen):
         screen.fill(WHITE)
         
+        # Dibujar suelo
         pygame.draw.line(screen, BLACK, (50, 500), (950, 500), 4)
         
+        # Dibujar controles
         self.slider_fuerza.draw(screen, self.font)
         self.slider_masa.draw(screen, self.font)
         self.slider_radio.draw(screen, self.font)
         self.start_button.draw(screen, self.font)
         self.reset_button.draw(screen, self.font)
         
+        #Dibujar resorte
         self.dibujar_resorte(screen)
         
+        # Dibujar esfera
         pos = self.cuerpo.position
         pygame.draw.circle(screen, BLUE, (int(pos.x), int(pos.y)), int(self.slider_radio.value))
         
+        # Mostrar estado de la simulación
         estado = "En Pausa" if self.simulacion_pausada else "En Ejecución" if self.simulacion_iniciada else "Esperando Inicio"
         estado_text = self.font.render(f"Estado: {estado}", True, BLACK)
         screen.blit(estado_text, (WIDTH//2 - 100, HEIGHT - 40))
 
+        # Visualizar con dominós
         space.debug_draw(draw_options)
 
 def main():
+    clock = pygame.time.Clock()
     sim = SimulacionGoldberg()
     
     while True:
@@ -235,11 +240,15 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
+                # Verificar click en sliders
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
                     if slider.knob.collidepoint(mouse_pos):
                         slider.active = True
+                        
+                # Verificar click en botón de inicio/pausa
                 if sim.start_button.rect.collidepoint(mouse_pos):
                     if not sim.simulacion_iniciada:
                         sim.simulacion_iniciada = True
@@ -247,24 +256,38 @@ def main():
                         sim.disparar_resorte()
                     else:
                         sim.simulacion_pausada = not sim.simulacion_pausada
+                
+                # Verificar click en botón de reinicio
                 if sim.reset_button.rect.collidepoint(mouse_pos):
+                    space.remove(space.shapes)
+                    space.remove(space.bodies)
                     sim.setup_inicial()
+            
             elif event.type == pygame.MOUSEBUTTONUP:
+                # Desactivar todos los sliders
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
                     slider.active = False
+                    
             elif event.type == pygame.MOUSEMOTION:
+                # Actualizar posición de sliders activos
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
                     if slider.active and not sim.simulacion_iniciada:
                         slider.update(pygame.mouse.get_pos())
+                        # Si se modifica masa o radio, actualizar esfera
                         if slider in [sim.slider_masa, sim.slider_radio]:
                             sim.crear_esfera()
         
+        # Actualizar física solo si la simulación ha iniciado y no está pausada
         if sim.simulacion_iniciada and not sim.simulacion_pausada:
             space.step(1/60.0)
         
+        # Dibujar
         sim.dibujar(screen)
         pygame.display.flip()
+        
+        # Controlar FPS
         clock.tick(60)
 
 if __name__ == "__main__":
     main()
+
