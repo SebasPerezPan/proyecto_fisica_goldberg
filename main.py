@@ -13,7 +13,7 @@ pygame.display.set_caption("Máquina de Goldberg - Simulación Mejorada")
 
 # Configuración del espacio físico
 space = pymunk.Space()
-space.gravity = (0, 981)
+space.gravity = (0, 10000)
 
 # Colores
 BLACK = (0, 0, 0)
@@ -160,7 +160,7 @@ class SimulacionGoldberg:
             
             points.append(end_pos)
             
-            # Dibujar líneas del resorte
+            # Dibujar líneas deml resorte
             for i in range(len(points)-1):
                 pygame.draw.line(screen, BLACK, 
                                (points[i].x, points[i].y),
