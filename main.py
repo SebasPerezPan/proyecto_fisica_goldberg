@@ -80,7 +80,7 @@ class SimulacionGoldberg:
         ]
         
         self.puntos_plataforma_media = [
-            (200, 205),
+            (200, 202),
             (400, 350),
             (500, 350)
         ]
@@ -91,17 +91,34 @@ class SimulacionGoldberg:
             (100, 550)
         ]
         
-        # Crear controles con valores iniciales guardados
-        self.slider_fuerza = Slider(50, 50, 200, 10, 1000, 10000, 5000, "Fuerza")
-        self.slider_masa = Slider(500, 50, 200, 10, 0.5, 5, 1, "Masa")
+        ## Mover slider_gravedad porque se ve todo feo
+
+        self.slider_k = Slider(50, 50, 200, 10, 0, 15, 7.5, "K (N/m)")  
+        self.slider_x = Slider(500, 50, 200, 10, 0, 15, 7.5, "X (m)")           
+        self.slider_masa = Slider(50, 150, 200, 10, 0.5, 5, 1, "Masa")
         self.slider_radio = Slider(500, 150, 200, 10, 10, 40, 20, "Radio")
-        self.start_button = Button(WIDTH//2 - 50, 50, 100, 40, "Iniciar")
+        self.slider_gravedad = Slider(900, 150, 200, 10, 0, 2000, 980, "Gravedad")  # Nuevo slider para gravedad
+        self.start_button = Button(50, HEIGHT - 100, 100, 40, "Iniciar")
         self.reset_button = Button(50, HEIGHT - 50, 100, 40, "Reiniciar")
         
         self.simulacion_iniciada = False
         self.simulacion_pausada = False
         self.resorte_disparado = False
         self.setup_inicial()
+
+    def calcular_fuerza(self):
+        # Calcular la energía potencial: E = 1/2 * k * x^2
+        k = self.slider_k.value
+        x = self.slider_x.value
+        energia = 0.5 * k * (x ** 2)
+        
+        # Convertir energía a fuerza de impulso
+        energia = min(energia, 1200)  # Factor de escala para mantener la simulación en rangos manejables
+        return energia
+
+    def calcular_peso(self):
+        # Calcular el peso: P = m * g
+        return self.slider_masa.value * (self.slider_gravedad.value / 100)  # División por 100 para mostrar valores más manejables
 
     def limpiar_espacio(self):
         # Eliminar todos los cuerpos y formas del espacio
@@ -110,8 +127,8 @@ class SimulacionGoldberg:
         for shape in space.shapes:
             space.remove(shape)
         
-        # Reiniciar el espacio
-        space.gravity = (0, 980)
+        # Reiniciar el espacio con la gravedad actual
+        space.gravity = (0, self.slider_gravedad.value)
 
     def crear_suelo(self):
         # Crear segmentos para la plataforma inicial
@@ -203,7 +220,7 @@ class SimulacionGoldberg:
 
     def disparar_resorte(self):
         if not self.resorte_disparado:
-            impulso = self.slider_fuerza.value
+            impulso = self.calcular_fuerza()
             self.cuerpo.apply_impulse_at_local_point((impulso, 0))
             self.resorte_disparado = True
 
@@ -238,11 +255,21 @@ class SimulacionGoldberg:
             )
         
         # Dibujar controles
-        self.slider_fuerza.draw(screen, self.font)
+        self.slider_k.draw(screen, self.font)
+        self.slider_x.draw(screen, self.font)
         self.slider_masa.draw(screen, self.font)
         self.slider_radio.draw(screen, self.font)
+        self.slider_gravedad.draw(screen, self.font)  # Dibujar slider de gravedad
         self.start_button.draw(screen, self.font)
         self.reset_button.draw(screen, self.font)
+        
+        # Dibujar energía actual
+        energia_text = self.font.render(f"Energía: {self.calcular_fuerza():.1f}", True, BLACK)
+        screen.blit(energia_text, (WIDTH//2 - 360, 50))
+        
+        # Dibujar peso actual
+        peso_text = self.font.render(f"Peso: {self.calcular_peso():.1f} N", True, BLACK)
+        screen.blit(peso_text, (WIDTH//2 - 360, 100))
         
         # Dibujar resorte
         self.dibujar_resorte(screen)
@@ -272,9 +299,13 @@ class SimulacionGoldberg:
         self.start_button.clicked = False
         
         # Resetear sliders a sus valores iniciales
-        self.slider_fuerza.reset_to_initial()
+        self.slider_k.reset_to_initial()
+        self.slider_x.reset_to_initial()
         self.slider_masa.reset_to_initial()
         self.slider_radio.reset_to_initial()
+        self.slider_gravedad.reset_to_initial()
+
+# ... (todo el código anterior igual hasta el main)
 
 def main():
     clock = pygame.time.Clock()
@@ -288,7 +319,7 @@ def main():
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
+                for slider in [sim.slider_k, sim.slider_x, sim.slider_masa, sim.slider_radio, sim.slider_gravedad]:
                     if slider.knob.collidepoint(mouse_pos):
                         slider.active = True
                 
@@ -301,18 +332,20 @@ def main():
                         sim.simulacion_pausada = not sim.simulacion_pausada
                 
                 if sim.reset_button.rect.collidepoint(mouse_pos):
-                    sim.setup_inicial()  # Llamar directamente a setup_inicial
+                    sim.setup_inicial()
             
             elif event.type == pygame.MOUSEBUTTONUP:
-                for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
+                for slider in [sim.slider_k, sim.slider_x, sim.slider_masa, sim.slider_radio, sim.slider_gravedad]:
                     slider.active = False
             
             elif event.type == pygame.MOUSEMOTION:
-                for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
+                for slider in [sim.slider_k, sim.slider_x, sim.slider_masa, sim.slider_radio, sim.slider_gravedad]:
                     if slider.active and not sim.simulacion_iniciada:
                         slider.update(pygame.mouse.get_pos())
                         if slider in [sim.slider_masa, sim.slider_radio]:
                             sim.crear_esfera()
+                        elif slider == sim.slider_gravedad:  # Añadir esta condición
+                            space.gravity = (0, sim.slider_gravedad.value)
 
         if sim.simulacion_iniciada and not sim.simulacion_pausada:
             space.step(1/60.0)
