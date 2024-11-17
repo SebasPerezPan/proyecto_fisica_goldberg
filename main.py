@@ -6,8 +6,8 @@ import math
 
 # Inicialización de pygame y pymunk
 pygame.init()
-WIDTH = 1920
-HEIGHT = 1080
+WIDTH = 1280  # Cambiado de 1920 a 1280
+HEIGHT = 720  # Cambiado de 1080 a 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Máquina de Goldberg - Simulación")
 
@@ -70,28 +70,28 @@ class SimulacionGoldberg:
     def __init__(self):
         self.font = pygame.font.Font(None, 36)
         
-        # Separar las plataformas en tres secciones
+        # Ajustar puntos de las plataformas proporcionalmente
         self.puntos_plataforma_inicial = [
-            (50, 300),      # Punto inicial
-            (300, 300)      # Plataforma horizontal superior
+            (50, 200),      # Punto inicial
+            (200, 200)      # Plataforma horizontal superior
         ]
         
         self.puntos_plataforma_media = [
-            (300, 305),      # Plataforma horizontal superior
-            (500, 500),     # Punto inicial de la rampa descendente
-            (700, 500)      # Rampa descendente
+            (200, 205),     # Plataforma horizontal superior
+            (400, 350),     # Punto inicial de la rampa descendente
+            (500, 350)      # Rampa descendente
         ]
         
         self.puntos_plataforma2 = [
-            (1000, 400),
-            (550, 800),     # Plataforma horizontal inferior
-            (100, 800)      # Rampa ascendente final
+            (700, 300),
+            (400, 550),     # Plataforma horizontal inferior
+            (100, 550)      # Rampa ascendente final
         ]
         
-        # Crear controles
+        # Ajustar posición de los controles
         self.slider_fuerza = Slider(50, 50, 200, 10, 1000, 10000, 5000, "Fuerza")
-        self.slider_masa = Slider(750, 50, 200, 10, 0.5, 5, 1, "Masa")
-        self.slider_radio = Slider(750, 150, 200, 10, 10, 40, 20, "Radio")
+        self.slider_masa = Slider(500, 50, 200, 10, 0.5, 5, 1, "Masa")
+        self.slider_radio = Slider(500, 150, 200, 10, 10, 40, 20, "Radio")
         self.start_button = Button(WIDTH//2 - 50, 50, 100, 40, "Iniciar")
         self.reset_button = Button(50, HEIGHT - 50, 100, 40, "Reiniciar")
         
@@ -149,7 +149,7 @@ class SimulacionGoldberg:
             
         momento = pymunk.moment_for_circle(self.slider_masa.value, 0, self.slider_radio.value)
         self.cuerpo = pymunk.Body(self.slider_masa.value, momento)
-        self.cuerpo.position = (50, 302 - self.slider_radio.value)
+        self.cuerpo.position = (50, 202 - self.slider_radio.value)  # Ajustado a la nueva altura
         
         self.forma = pymunk.Circle(self.cuerpo, self.slider_radio.value)
         self.forma.friction = 1.0
@@ -158,32 +158,27 @@ class SimulacionGoldberg:
         space.add(self.cuerpo, self.forma)
 
     def crear_resorte(self):
-        self.resorte_pos = Vec2d(10, 300 - self.slider_radio.value)
-        self.resorte_length = 30  # Longitud del resorte dibujado
+        self.resorte_pos = Vec2d(10, 200 - self.slider_radio.value)  # Ajustado a la nueva altura
+        self.resorte_length = 30
 
     def dibujar_resorte(self, screen):
         # Dibujar base del resorte
-        pygame.draw.rect(screen, BLACK, (0, 250, 20, 50))
+        pygame.draw.rect(screen, BLACK, (0, 150, 20, 50))  # Ajustado a la nueva altura
         
         if not self.resorte_disparado:
             start_pos = self.resorte_pos
             end_pos = Vec2d(start_pos.x + self.resorte_length, start_pos.y)
             
-            # Número de zigzags
             num_segments = 14
             segment_length = self.resorte_length / num_segments
-            
-            # Amplitud del zigzag
             amplitude = 20
             
-            # Calcular puntos del zigzag
             points = [start_pos]
             for i in range(1, num_segments):
                 t = i / num_segments
                 x = start_pos.x + self.resorte_length * t
                 y = start_pos.y
                 
-                # Añadir offset zigzag
                 if i % 2:
                     y += amplitude
                 else:
@@ -193,7 +188,6 @@ class SimulacionGoldberg:
             
             points.append(end_pos)
             
-            # Dibujar líneas del resorte
             for i in range(len(points)-1):
                 pygame.draw.line(screen, BLACK, 
                                (points[i].x, points[i].y),
@@ -208,7 +202,7 @@ class SimulacionGoldberg:
     def dibujar(self, screen):
         screen.fill(WHITE)
         
-        # Dibujar la plataforma inicial
+        # Dibujar plataformas
         pygame.draw.line(
             screen, 
             BLACK, 
@@ -226,7 +220,6 @@ class SimulacionGoldberg:
                 4
             )
         
-        # Dibujar la segunda plataforma
         for i in range(len(self.puntos_plataforma2)-1):
             pygame.draw.line(
                 screen, 
@@ -250,13 +243,13 @@ class SimulacionGoldberg:
         pos = self.cuerpo.position
         pygame.draw.circle(screen, BLUE, (int(pos.x), int(pos.y)), int(self.slider_radio.value))
         
-        # Mostrar estado de la simulación
+        # Mostrar estado
         estado = "En Pausa" if self.simulacion_pausada else "En Ejecución" if self.simulacion_iniciada else "Esperando Inicio"
         estado_text = self.font.render(f"Estado: {estado}", True, BLACK)
         screen.blit(estado_text, (WIDTH//2 - 100, HEIGHT - 40))
 
     def setup_inicial(self):
-        # Limpiar el espacio completamente
+        # Limpiar el espacio
         for shape in list(space.shapes):
             space.remove(shape)
             if shape.body and not shape.body.is_static:
@@ -273,7 +266,7 @@ class SimulacionGoldberg:
         self.resorte_disparado = False
         self.start_button.clicked = False
         
-        # Resetear sliders a valores iniciales
+        # Resetear sliders
         self.slider_fuerza.reset_to_initial(5000)
         self.slider_masa.reset_to_initial(1)
         self.slider_radio.reset_to_initial(20)
@@ -290,12 +283,10 @@ def main():
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                # Verificar click en sliders
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
                     if slider.knob.collidepoint(mouse_pos):
                         slider.active = True
                 
-                # Verificar click en botón de inicio/pausa
                 if sim.start_button.rect.collidepoint(mouse_pos):
                     if not sim.simulacion_iniciada:
                         sim.simulacion_iniciada = True
@@ -304,35 +295,27 @@ def main():
                     else:
                         sim.simulacion_pausada = not sim.simulacion_pausada
                 
-                # Verificar click en botón de reinicio
                 if sim.reset_button.rect.collidepoint(mouse_pos):
                     space.remove(space.shapes)
                     space.remove(space.bodies)
                     sim.setup_inicial()
             
             elif event.type == pygame.MOUSEBUTTONUP:
-                # Desactivar todos los sliders
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
                     slider.active = False
             
             elif event.type == pygame.MOUSEMOTION:
-                # Actualizar posición de sliders activos
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
                     if slider.active and not sim.simulacion_iniciada:
                         slider.update(pygame.mouse.get_pos())
-                        # Si se modifica masa o radio, actualizar esfera
                         if slider in [sim.slider_masa, sim.slider_radio]:
                             sim.crear_esfera()
 
-        # Actualizar física solo si la simulación ha iniciado y no está pausada
         if sim.simulacion_iniciada and not sim.simulacion_pausada:
             space.step(1/60.0)
         
-        # Dibujar
         sim.dibujar(screen)
         pygame.display.flip()
-        
-        # Controlar FPS
         clock.tick(60)
 
 if __name__ == "__main__":
