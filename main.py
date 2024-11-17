@@ -421,9 +421,6 @@ class SimulacionGoldberg:
         pos = self.cuerpo.position
         pygame.draw.circle(screen, BLUE, (int(pos.x), int(pos.y)), int(self.slider_radio.value))
         
-        # Dibujar los dominós
-        for domino in self.dominoes:
-            pygame.draw.rect(screen, BLACK, (domino.position.x - 5, domino.position.y - 30, 10, 60))
         
         # Mostrar estado
         estado = "En Pausa" if self.simulacion_pausada else "En Ejecución" if self.simulacion_iniciada else "Esperando Inicio"
