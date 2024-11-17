@@ -84,8 +84,7 @@ class SimulacionGoldberg:
         self.puntos_plataforma_inicial = [
             (50, 200),
             (200, 200)
-        ]
-        
+        ]        
         self.puntos_plataforma_media = [
             (200, 202),
             (400, 350),
@@ -112,6 +111,10 @@ class SimulacionGoldberg:
         self.dominoes = []
         self.setup_inicial()
 
+## Funciones para calcular:
+
+# Energias. HAY QUE DARLE SENTIDO A ESTO!!!
+
     def calcular_energia_potencial(self):
         k = self.slider_k.value
         x = self.slider_x.value
@@ -125,11 +128,25 @@ class SimulacionGoldberg:
         energia_potencial = m * g * h
         return energia_potencial
 
+# Puse el / 10 xd porque yolo
+
     def calcular_energia_cinetica(self):
         m = self.slider_masa.value
-        v = self.cuerpo.velocity.length
+        v = self.cuerpo.velocity.length / 10
         energia_cinetica = 0.5 * m * (v ** 2)
         return energia_cinetica
+
+    def calcular_fuerza(self):
+        k = self.slider_k.value
+        x = self.slider_x.value
+        energia = 0.5 * k * (x ** 2)
+        energia = min(energia, 1200)
+        return energia
+
+    def calcular_peso(self):
+        return self.slider_masa.value * (self.slider_gravedad.value / 100)
+
+## Funciones para mostrar información:
 
     def mostrar_posiciones(self, screen):
         """
@@ -155,7 +172,17 @@ class SimulacionGoldberg:
         peso_texto = self.font.render(f"Peso: {peso:.1f} N", True, BLACK)
         screen.blit(peso_texto, (WIDTH - 300, 250))
     
-    def detectar_colisiones(self):#CORREGIR LAS COLISIONES!!!
+
+    def mostrar_registros(self, screen):
+        y_pos = 50
+        for i, record in enumerate(self.domino_records):
+            tiempo = f"Domino {i+1} - T: {record['tiempo']:.2f}s"
+            pos = f"Pos: ({record['posicion'][0]:.1f}, {record['posicion'][1]:.1f})"
+            vel = f"Vel: ({record['velocidad'][0]:.1f}, {record['velocidad'][1]:.1f})"
+            texto = self.font.render(f"{tiempo} | {pos} | {vel}", True, BLACK)
+            screen.blit(texto, (700, y_pos + i * 30))
+
+    def detectar_colisiones(self):#CORREGIR LAS COLISIONES!!! Si señora, en estos días
         """
         Detectar las colisiones entre objetos y mostrar la información.
         """
@@ -165,16 +192,6 @@ class SimulacionGoldberg:
                 momento_colision = contacto.elasticity  # Elasticidad del impacto
                 print(f"Colisión detectada: Fuerza = {fuerza_colision:.2f} N, Momento = {momento_colision:.2f}")
 
-    def calcular_fuerza(self):
-        k = self.slider_k.value
-        x = self.slider_x.value
-        energia = 0.5 * k * (x ** 2)
-        energia = min(energia, 1200)
-        return energia
-
-    def calcular_peso(self):
-        return self.slider_masa.value * (self.slider_gravedad.value / 100)
-
     def limpiar_espacio(self):
         for body in space.bodies:
             space.remove(body)
@@ -182,6 +199,10 @@ class SimulacionGoldberg:
             space.remove(shape)
         
         space.gravity = (0, self.slider_gravedad.value)
+
+## Objetos:
+
+# Superficie de contacto:
 
     def crear_suelo(self):
         segmento = pymunk.Segment(
@@ -241,6 +262,10 @@ class SimulacionGoldberg:
             segment.elasticity = 0.5
             space.add(segment)
 
+## Objetos de interacción.
+
+# Esfera
+
     def crear_esfera(self):
         if hasattr(self, 'cuerpo'):
             if self.cuerpo in space.bodies:
@@ -258,6 +283,8 @@ class SimulacionGoldberg:
         self.forma.collision_type = 0  # Tipo de colisión para la esfera
         
         space.add(self.cuerpo, self.forma)
+
+# Obstaculo 
 
     def crear_resorte(self):
         self.resorte_pos = Vec2d(10, 200 - self.slider_radio.value)
@@ -282,15 +309,6 @@ class SimulacionGoldberg:
             self.dominoes.append(body)
 
         #self.dominoes[0].angle = math.radians(0)
-
-    def mostrar_registros(self, screen):
-        y_pos = 50
-        for i, record in enumerate(self.domino_records):
-            tiempo = f"Domino {i+1} - T: {record['tiempo']:.2f}s"
-            pos = f"Pos: ({record['posicion'][0]:.1f}, {record['posicion'][1]:.1f})"
-            vel = f"Vel: ({record['velocidad'][0]:.1f}, {record['velocidad'][1]:.1f})"
-            texto = self.font.render(f"{tiempo} | {pos} | {vel}", True, BLACK)
-            screen.blit(texto, (700, y_pos + i * 30))
 
     def dibujar_resorte(self, screen):
         pygame.draw.rect(screen, BLACK, (0, 150, 20, 50))
