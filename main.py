@@ -5,6 +5,11 @@ from pymunk import Vec2d
 from pymunk.pygame_util import DrawOptions
 import math
 
+## Cosas a mejorar: 
+
+# Todo lo relacionado a los dominós.
+# Las medidas de energía.
+
 # Inicialización de pygame y pymunk
 pygame.init()
 WIDTH = 1280
@@ -127,9 +132,18 @@ class SimulacionGoldberg:
         return energia_cinetica
 
     def mostrar_posiciones(self, screen):
+        """
+        Mostrar las posiciones de los objetos (esfera, dominós, etc.) en la pantalla.
+        """
         pos_esfera = self.cuerpo.position
         pos_texto = self.font.render(f"Posición Esfera: ({pos_esfera.x:.1f}, {pos_esfera.y:.1f})", True, BLACK)
         screen.blit(pos_texto, (WIDTH - 500, 350))
+        
+        # Posiciones de los dominós
+        for i, domino in enumerate(self.dominoes):
+            pos_domino = domino.position
+            pos_texto = self.font.render(f"Posición Domino {i+1}: ({pos_domino.x:.1f}, {pos_domino.y:.1f})", True, BLACK)
+            screen.blit(pos_texto, (WIDTH - 500, 400 + i * 20))
 
     def mostrar_fuerzas(self, screen):
         fuerza_resorte = self.calcular_fuerza()
