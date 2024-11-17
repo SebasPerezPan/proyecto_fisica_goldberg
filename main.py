@@ -6,8 +6,8 @@ import math
 
 # Inicialización de pygame y pymunk
 pygame.init()
-WIDTH = 1280  # Cambiado de 1920 a 1280
-HEIGHT = 720  # Cambiado de 1080 a 720
+WIDTH = 1280
+HEIGHT = 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Máquina de Goldberg - Simulación")
 
@@ -29,6 +29,7 @@ class Slider:
         self.min_val = min_val
         self.max_val = max_val
         self.value = initial_val
+        self.initial_val = initial_val  # Guardar valor inicial
         self.label = label
         self.active = False
         self.knob = pygame.Rect(self.get_knob_pos(), y - 10, 20, height + 20)
@@ -42,8 +43,11 @@ class Slider:
             self.value = self.min_val + (x - self.rect.x) * (self.max_val - self.min_val) / self.rect.width
             self.knob.centerx = x
     
-    def reset_to_initial(self, initial_val):
-        self.value = initial_val
+    def reset_to_initial(self, initial_val=None):
+        if initial_val is not None:
+            self.value = initial_val
+        else:
+            self.value = self.initial_val
         self.knob.centerx = self.get_knob_pos()
             
     def draw(self, screen, font):
@@ -70,86 +74,91 @@ class SimulacionGoldberg:
     def __init__(self):
         self.font = pygame.font.Font(None, 36)
         
-        # Ajustar puntos de las plataformas proporcionalmente
         self.puntos_plataforma_inicial = [
-            (50, 200),      # Punto inicial
-            (200, 200)      # Plataforma horizontal superior
+            (50, 200),
+            (200, 200)
         ]
         
         self.puntos_plataforma_media = [
-            (200, 205),     # Plataforma horizontal superior
-            (400, 350),     # Punto inicial de la rampa descendente
-            (500, 350)      # Rampa descendente
+            (200, 205),
+            (400, 350),
+            (500, 350)
         ]
         
         self.puntos_plataforma2 = [
             (700, 300),
-            (400, 550),     # Plataforma horizontal inferior
-            (100, 550)      # Rampa ascendente final
+            (400, 550),
+            (100, 550)
         ]
         
-        # Ajustar posición de los controles
+        # Crear controles con valores iniciales guardados
         self.slider_fuerza = Slider(50, 50, 200, 10, 1000, 10000, 5000, "Fuerza")
         self.slider_masa = Slider(500, 50, 200, 10, 0.5, 5, 1, "Masa")
         self.slider_radio = Slider(500, 150, 200, 10, 10, 40, 20, "Radio")
         self.start_button = Button(WIDTH//2 - 50, 50, 100, 40, "Iniciar")
         self.reset_button = Button(50, HEIGHT - 50, 100, 40, "Reiniciar")
         
-        # Variables de estado
         self.simulacion_iniciada = False
         self.simulacion_pausada = False
         self.resorte_disparado = False
         self.setup_inicial()
 
+    def limpiar_espacio(self):
+        # Eliminar todos los cuerpos y formas del espacio
+        for body in space.bodies:
+            space.remove(body)
+        for shape in space.shapes:
+            space.remove(shape)
+        
+        # Reiniciar el espacio
+        space.gravity = (0, 980)
+
     def crear_suelo(self):
-            # Limpiar todos los segmentos estáticos existentes
-            for shape in list(space.shapes):
-                if isinstance(shape, pymunk.Segment) and shape.body.is_static:
-                    space.remove(shape)
-                    space.remove(shape.body)
-            
-            # Crear segmentos para la plataforma inicial
+        # Crear segmentos para la plataforma inicial
+        segmento = pymunk.Segment(
+            space.static_body,
+            self.puntos_plataforma_inicial[0],      
+            self.puntos_plataforma_inicial[1],    
+            4               
+        )
+        segmento.friction = 10.0
+        segmento.elasticity = 0.5
+        space.add(segmento)
+        
+        # Crear segmentos para la plataforma media
+        for i in range(len(self.puntos_plataforma_media)-1):
             segmento = pymunk.Segment(
                 space.static_body,
-                self.puntos_plataforma_inicial[0],      
-                self.puntos_plataforma_inicial[1],    
+                self.puntos_plataforma_media[i],      
+                self.puntos_plataforma_media[i+1],    
                 4               
             )
             segmento.friction = 10.0
             segmento.elasticity = 0.5
             space.add(segmento)
-            
-            # Crear segmentos para la plataforma media
-            for i in range(len(self.puntos_plataforma_media)-1):
-                segmento = pymunk.Segment(
-                    space.static_body,
-                    self.puntos_plataforma_media[i],      
-                    self.puntos_plataforma_media[i+1],    
-                    4               
-                )
-                segmento.friction = 10.0
-                segmento.elasticity = 0.5
-                space.add(segmento)
-            
-            # Crear segmentos para la segunda plataforma
-            for i in range(len(self.puntos_plataforma2)-1):
-                segmento = pymunk.Segment(
-                    space.static_body,
-                    self.puntos_plataforma2[i],      
-                    self.puntos_plataforma2[i+1],    
-                    4               
-                )
-                segmento.friction = 1.0
-                segmento.elasticity = 0.5
-                space.add(segmento)
+        
+        # Crear segmentos para la segunda plataforma
+        for i in range(len(self.puntos_plataforma2)-1):
+            segmento = pymunk.Segment(
+                space.static_body,
+                self.puntos_plataforma2[i],      
+                self.puntos_plataforma2[i+1],    
+                4               
+            )
+            segmento.friction = 1.0
+            segmento.elasticity = 0.5
+            space.add(segmento)
 
     def crear_esfera(self):
         if hasattr(self, 'cuerpo'):
-            space.remove(self.cuerpo, self.forma)
+            if self.cuerpo in space.bodies:
+                space.remove(self.cuerpo)
+            if self.forma in space.shapes:
+                space.remove(self.forma)
             
         momento = pymunk.moment_for_circle(self.slider_masa.value, 0, self.slider_radio.value)
         self.cuerpo = pymunk.Body(self.slider_masa.value, momento)
-        self.cuerpo.position = (50, 202 - self.slider_radio.value)  # Ajustado a la nueva altura
+        self.cuerpo.position = (50, 202 - self.slider_radio.value)
         
         self.forma = pymunk.Circle(self.cuerpo, self.slider_radio.value)
         self.forma.friction = 1.0
@@ -158,12 +167,11 @@ class SimulacionGoldberg:
         space.add(self.cuerpo, self.forma)
 
     def crear_resorte(self):
-        self.resorte_pos = Vec2d(10, 200 - self.slider_radio.value)  # Ajustado a la nueva altura
+        self.resorte_pos = Vec2d(10, 200 - self.slider_radio.value)
         self.resorte_length = 30
 
     def dibujar_resorte(self, screen):
-        # Dibujar base del resorte
-        pygame.draw.rect(screen, BLACK, (0, 150, 20, 50))  # Ajustado a la nueva altura
+        pygame.draw.rect(screen, BLACK, (0, 150, 20, 50))
         
         if not self.resorte_disparado:
             start_pos = self.resorte_pos
@@ -249,11 +257,8 @@ class SimulacionGoldberg:
         screen.blit(estado_text, (WIDTH//2 - 100, HEIGHT - 40))
 
     def setup_inicial(self):
-        # Limpiar el espacio
-        for shape in list(space.shapes):
-            space.remove(shape)
-            if shape.body and not shape.body.is_static:
-                space.remove(shape.body)
+        # Limpiar completamente el espacio
+        self.limpiar_espacio()
         
         # Crear elementos
         self.crear_suelo()
@@ -266,10 +271,10 @@ class SimulacionGoldberg:
         self.resorte_disparado = False
         self.start_button.clicked = False
         
-        # Resetear sliders
-        self.slider_fuerza.reset_to_initial(5000)
-        self.slider_masa.reset_to_initial(1)
-        self.slider_radio.reset_to_initial(20)
+        # Resetear sliders a sus valores iniciales
+        self.slider_fuerza.reset_to_initial()
+        self.slider_masa.reset_to_initial()
+        self.slider_radio.reset_to_initial()
 
 def main():
     clock = pygame.time.Clock()
@@ -296,9 +301,7 @@ def main():
                         sim.simulacion_pausada = not sim.simulacion_pausada
                 
                 if sim.reset_button.rect.collidepoint(mouse_pos):
-                    space.remove(space.shapes)
-                    space.remove(space.bodies)
-                    sim.setup_inicial()
+                    sim.setup_inicial()  # Llamar directamente a setup_inicial
             
             elif event.type == pygame.MOUSEBUTTONUP:
                 for slider in [sim.slider_fuerza, sim.slider_masa, sim.slider_radio]:
