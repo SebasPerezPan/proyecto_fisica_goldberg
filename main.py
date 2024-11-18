@@ -166,6 +166,20 @@ class SimulacionGoldberg:
 
 
 ## Funciones para mostrar información:
+
+    def mostrar_posiciones(self, screen):
+        """
+        Mostrar las posiciones de los objetos (esfera, dominós, etc.) en la pantalla.
+        """
+        pos_esfera = self.cuerpo.position
+        pos_texto = self.font.render(f"Posición Esfera: ({pos_esfera.x:.1f}, {pos_esfera.y:.1f})", True, BLACK)
+        screen.blit(pos_texto, (WIDTH - 500, 350))
+
+        # Posiciones de los dominós
+        for i, domino in enumerate(self.dominoes):
+            pos_domino = domino.position
+            pos_texto = self.font.render(f"Posición Domino {i+1}: ({pos_domino.x:.1f}, {pos_domino.y:.1f})", True, BLACK)
+            screen.blit(pos_texto, (WIDTH - 500, 400 + i * 20))
         
 
     def mostrar_fuerzas(self, screen):
@@ -424,6 +438,9 @@ class SimulacionGoldberg:
         
         energia_cinetica_texto = self.font.render(f"Energia Cinética: {energia_cinetica:.1f} J", True, BLACK)
         screen.blit(energia_cinetica_texto, (WIDTH-500, 540))
+
+        # Mostrar las posiciones
+        self.mostrar_posiciones(screen)
         
         # Mostrar fuerzas
         self.mostrar_fuerzas(screen)
