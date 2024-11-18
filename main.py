@@ -4,6 +4,7 @@ import sys
 from pymunk import Vec2d
 from pymunk.pygame_util import DrawOptions
 import math
+import matplotlib.pyplot as plt
 
 ## Cosas a mejorar: 
 
@@ -109,6 +110,12 @@ class SimulacionGoldberg:
         self.simulacion_pausada = False
         self.resorte_disparado = False
         self.dominoes = []
+        self.domino_records = []
+        self.tiempo_actual = 0
+        self.tiempo_datos = []
+        self.energia_potencial_datos = []
+        self.energia_cinetica_datos = []
+        
         self.setup_inicial()
 
 ## Funciones para calcular:
@@ -146,21 +153,20 @@ class SimulacionGoldberg:
     def calcular_peso(self):
         return self.slider_masa.value * (self.slider_gravedad.value / 100)
 
-## Funciones para mostrar información:
+    def actualizar_energias(self, delta_t):
+        """Actualizar las energías y el tiempo"""
+        self.tiempo_actual += delta_t
+        energia_cinetica = self.calcular_energia_cinetica()
+        energia_potencial = self.calcular_energia_potencial_gravitacional()
 
-    def mostrar_posiciones(self, screen):
-        """
-        Mostrar las posiciones de los objetos (esfera, dominós, etc.) en la pantalla.
-        """
-        pos_esfera = self.cuerpo.position
-        pos_texto = self.font.render(f"Posición Esfera: ({pos_esfera.x:.1f}, {pos_esfera.y:.1f})", True, BLACK)
-        screen.blit(pos_texto, (WIDTH - 500, 350))
+        # Guardar datos en arrays
+        self.energia_cinetica_datos.append(energia_cinetica)
+        self.energia_potencial_datos.append(energia_potencial)
+        self.tiempo_datos.append(self.tiempo_actual)
+
+
+## Funciones para mostrar información:
         
-        # Posiciones de los dominós
-        for i, domino in enumerate(self.dominoes):
-            pos_domino = domino.position
-            pos_texto = self.font.render(f"Posición Domino {i+1}: ({pos_domino.x:.1f}, {pos_domino.y:.1f})", True, BLACK)
-            screen.blit(pos_texto, (WIDTH - 500, 400 + i * 20))
 
     def mostrar_fuerzas(self, screen):
         fuerza_resorte = self.calcular_fuerza()
@@ -199,6 +205,21 @@ class SimulacionGoldberg:
             space.remove(shape)
         
         space.gravity = (0, self.slider_gravedad.value)
+
+    def graficar_energias(self):
+        """Graficar las energías almacenadas."""
+        if not self.tiempo_datos:
+            return
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(self.tiempo_datos, self.energia_cinetica_datos, label="Energía Cinética", color="blue")
+        plt.plot(self.tiempo_datos, self.energia_potencial_datos, label="Energía Potencial Gravitacional", color="green")
+        plt.title("Energías durante la simulación")
+        plt.xlabel("Tiempo (s)")
+        plt.ylabel("Energía (J)")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
 
 ## Objetos:
 
@@ -288,6 +309,10 @@ class SimulacionGoldberg:
 
     def crear_resorte(self):
         self.resorte_pos = Vec2d(10, 200 - self.slider_radio.value)
+        self.resorte_length = 30
+
+    def crear_resorte_2(self):
+        self.resorte_pos = Vec2d(10, 50 - self.slider_radio.value)
         self.resorte_length = 30
 
     def crear_dominos(self):
@@ -400,9 +425,6 @@ class SimulacionGoldberg:
         energia_cinetica_texto = self.font.render(f"Energia Cinética: {energia_cinetica:.1f} J", True, BLACK)
         screen.blit(energia_cinetica_texto, (WIDTH-500, 540))
         
-        # Mostrar las posiciones
-        self.mostrar_posiciones(screen)
-        
         # Mostrar fuerzas
         self.mostrar_fuerzas(screen)
         
@@ -420,7 +442,6 @@ class SimulacionGoldberg:
         # Dibujar esfera
         pos = self.cuerpo.position
         pygame.draw.circle(screen, BLUE, (int(pos.x), int(pos.y)), int(self.slider_radio.value))
-        
         
         # Mostrar estado
         estado = "En Pausa" if self.simulacion_pausada else "En Ejecución" if self.simulacion_iniciada else "Esperando Inicio"
@@ -452,6 +473,17 @@ class SimulacionGoldberg:
         self.slider_radio.reset_to_initial()
         self.slider_gravedad.reset_to_initial()
 
+        # Llamar al método graficar antes de reiniciar
+        if self.energia_cinetica_datos and self.energia_potencial_datos:
+            self.graficar_energias()    
+
+        # Resetear datos de energía y tiempo
+        self.energia_cinetica_datos.clear()
+        self.energia_potencial_datos.clear()
+        self.tiempo_datos.clear()
+        self.tiempo_actual = 0
+
+
 def main():
     clock = pygame.time.Clock()
     sim = SimulacionGoldberg()
@@ -467,6 +499,8 @@ def main():
                 for slider in [sim.slider_k, sim.slider_x, sim.slider_masa, sim.slider_radio, sim.slider_gravedad]:
                     if slider.knob.collidepoint(mouse_pos):
                         slider.active = True
+                if sim.reset_button.rect.collidepoint(mouse_pos):
+                    sim.setup_inicial()
                 
                 if sim.start_button.rect.collidepoint(mouse_pos):
                     if not sim.simulacion_iniciada:
@@ -491,9 +525,10 @@ def main():
                             sim.crear_esfera()
                         elif slider == sim.slider_gravedad:  # Añadir esta condición
                             space.gravity = (0, sim.slider_gravedad.value)
-
+                
         if sim.simulacion_iniciada and not sim.simulacion_pausada:
             space.step(1/60.0)
+            sim.actualizar_energias(1 / 60.0)  # Registrar energías en cada frame
        # sim.detectar_colisiones()
         sim.dibujar(screen)
         pygame.display.flip()
