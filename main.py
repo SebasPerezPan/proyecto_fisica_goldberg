@@ -176,8 +176,10 @@ class SimulacionGoldberg:
         self.domino_records = []
         self.tiempo_actual = 0
         self.tiempo_datos = []
-        self.energia_potencial_datos = []
+        self.energia_potencial_elastica_datos = []
         self.energia_cinetica_datos = []
+        self.energia_potencial_gravitacional_datos = []
+        self.energia_mecanica_datos = []
         
         self.setup_inicial()
 
@@ -185,22 +187,22 @@ class SimulacionGoldberg:
 
 # Energias. HAY QUE DARLE SENTIDO A ESTO!!!
 
-    def calcular_energia_potencial(self):
+    def calcular_energia_potencial_elastica(self):
         k = self.slider_k.value
         x = self.slider_x.value
-        energia_potencial = 0.5 * k * (x ** 2)
-        return energia_potencial
+        energia_potencial_elastica = 0.5 * k * (x ** 2)
+        return energia_potencial_elastica
 
     def calcular_energia_potencial_gravitacional(self):
         """Calcula la energía potencial gravitacional de la esfera."""
         m = self.cuerpo.mass  # Masa de la esfera
-        g = self.slider_gravedad.value / 100  # Gravedad ajustada
+        g = self.slider_gravedad.value / 100 # Gravedad ajustada
 
-        # Determinar la altura relativa al marco, ajustada por el radio de la esfera
+        # Determinar la altura relativa al marco, sin limitar a valores positivos
         if fixed_origin:
-            h = max(0, (fixed_origin[1] - self.cuerpo.position[1]) - self.slider_radio.value-8)
+            h = (fixed_origin[1] - self.cuerpo.position[1]) - self.slider_radio.value - 8
         else:
-            h = max(0, (custom_origin[1] - self.cuerpo.position[1]) - self.slider_radio.value-8)
+            h = (custom_origin[1] - self.cuerpo.position[1]) - self.slider_radio.value - 8
 
         return m * g * h
 
@@ -208,9 +210,13 @@ class SimulacionGoldberg:
 
     def calcular_energia_cinetica(self):
         """Calcula la energía cinética de la esfera."""
-        v = self.cuerpo.velocity.length / 10  # Escalar la velocidad
+        v = self.cuerpo.velocity.length / 10 # Escalar la velocidad
         m = self.cuerpo.mass
         return 0.5 * m * (v ** 2)
+
+    def calcular_energia_mecanica(self):
+        """Calcula la energía mecánica total del sistema."""
+        return self.calcular_energia_cinetica() + self.calcular_energia_potencial_elastica() + self.calcular_energia_potencial_gravitacional()
 
 
     def calcular_fuerza(self):
@@ -227,13 +233,17 @@ class SimulacionGoldberg:
         """Actualizar las energías con el marco fijo."""
         self.tiempo_actual += delta_t
         energia_cinetica = self.calcular_energia_cinetica()
-        energia_potencial = self.calcular_energia_potencial_gravitacional()
+        energia_potencial_elastica = self.calcular_energia_potencial_elastica()
+        energia_potencial_gravitacional = self.calcular_energia_potencial_gravitacional()
+        energia_mecanica = self.calcular_energia_mecanica()
+
 
         # Almacenar datos para graficar
         self.energia_cinetica_datos.append(energia_cinetica)
-        self.energia_potencial_datos.append(energia_potencial)
+        self.energia_potencial_elastica_datos.append(energia_potencial_elastica)
+        self.energia_potencial_gravitacional_datos.append(energia_potencial_gravitacional)
+        self.energia_mecanica_datos.append(energia_mecanica)
         self.tiempo_datos.append(self.tiempo_actual)
-
 
 
 ## Funciones para mostrar información:
@@ -289,13 +299,15 @@ class SimulacionGoldberg:
         space.gravity = (0, self.slider_gravedad.value)
 
     def graficar_energias(self):
-        """Graficar las energías almacenadas."""
+        """Graficar las energías almacenadas y guardarlas en un archivo CSV."""
         if not self.tiempo_datos:
             return
-        
+
+        # Graficar las energías
         plt.figure(figsize=(10, 6))
         plt.plot(self.tiempo_datos, self.energia_cinetica_datos, label="Energía Cinética", color="blue")
-        plt.plot(self.tiempo_datos, self.energia_potencial_datos, label="Energía Potencial Gravitacional", color="green")
+        plt.plot(self.tiempo_datos, self.energia_potencial_gravitacional_datos, label="Energía Potencial Gravitacional", color="green")
+        plt.plot(self.tiempo_datos, self.energia_mecanica_datos, label="Energía Mecánica", color="purple")
         plt.title("Energías durante la simulación")
         plt.xlabel("Tiempo (s)")
         plt.ylabel("Energía (J)")
@@ -494,12 +506,16 @@ class SimulacionGoldberg:
         self.reset_button.draw(screen, self.font)
         
          # Mostrar energías
-        energia_potencial = self.calcular_energia_potencial()  # Energía potencial elástica
+        energia_potencial_elastica = self.calcular_energia_potencial_elastica()  # Energía potencial elástica
         energia_potencial_gravitacional = self.calcular_energia_potencial_gravitacional()  # Energía potencial gravitacional
         energia_cinetica = self.calcular_energia_cinetica()  # Energía cinética
+        energia_mecanica = self.calcular_energia_mecanica() # Energía mecánica total
         
-        energia_texto = self.font.render(f"Energia Potencial (resorte): {energia_potencial/10:.1f} J", True, BLACK)
-        screen.blit(energia_texto, (WIDTH-500, 600))
+        energia_mecanica_texto = self.font.render(f"Energía Mecánica: {energia_mecanica/10:.1f} J", True, BLACK)
+        screen.blit(energia_mecanica_texto, (WIDTH-500, 630))
+
+        energia_potencial_elastica_texto = self.font.render(f"Energia Potencial (resorte): {energia_potencial_elastica/10:.1f} J", True, BLACK)
+        screen.blit(energia_potencial_elastica_texto, (WIDTH-500, 600))
         
         energia_gravitacional_texto = self.font.render(f"Energia Pot. Gravitacional: {energia_potencial_gravitacional/10:.1f} J", True, BLACK)
         screen.blit(energia_gravitacional_texto, (WIDTH-500, 570))
@@ -561,12 +577,13 @@ class SimulacionGoldberg:
         self.slider_gravedad.reset_to_initial()
 
         # Llamar al método graficar antes de reiniciar
-        if self.energia_cinetica_datos and self.energia_potencial_datos:
+        if self.tiempo_datos:
             self.graficar_energias()    
 
         # Resetear datos de energía y tiempo
         self.energia_cinetica_datos.clear()
-        self.energia_potencial_datos.clear()
+        self.energia_potencial_gravitacional_datos.clear()
+        self.energia_mecanica_datos.clear()
         self.tiempo_datos.clear()
         self.tiempo_actual = 0
 
