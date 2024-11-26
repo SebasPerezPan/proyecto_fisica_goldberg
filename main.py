@@ -31,6 +31,69 @@ BLUE = (0, 0, 255)
 GREEN = (0, 255, 0)
 GRAY = (200, 200, 200)
 
+# Origen dinámico
+custom_origin = [0, HEIGHT]  # Inicialmente en la esquina inferior izquierda
+fixed_origin = None  # Una vez iniciado, se fija aquí
+
+
+# Funciones de transformación de coordenadas
+def pymunk_to_pygame(p):
+    """Transforma coordenadas de Pymunk a Pygame según el origen."""
+    origin = fixed_origin if fixed_origin else custom_origin
+    x = p[0] - origin[0]
+    y = origin[1] - p[1]
+    return int(x), int(y)
+
+def pygame_to_pymunk(p):
+    """Transforma coordenadas de Pygame a Pymunk según el origen."""
+    origin = fixed_origin if fixed_origin else custom_origin
+    x = p[0] + origin[0]
+    y = origin[1] - p[1]
+    return x, y
+
+
+
+
+
+# Funciones de transformación de coordenadas
+def pymunk_to_pygame(p):
+    """Transforma coordenadas de Pymunk a Pygame según el origen fijo."""
+    origin = fixed_origin if fixed_origin else custom_origin
+    # Ajustar para que el origen fijo sea (0, 0)
+    x = p[0] - origin[0]
+    y = origin[1] - p[1]
+    return int(x), int(y)
+
+
+def pygame_to_pymunk(p):
+    """Transforma coordenadas de Pygame a Pymunk según el origen fijo."""
+    origin = fixed_origin if fixed_origin else custom_origin
+    x = p[0] + origin[0]
+    y = origin[1] - p[1]
+    return x, y
+
+
+# Actualización del origen dinámico al fijarlo
+def fix_origin():
+    """Fija el origen actual como origen absoluto (0, 0)."""
+    global fixed_origin
+    if not fixed_origin:
+        fixed_origin = custom_origin.copy()
+        custom_origin[0] = 0
+        custom_origin[1] = 0
+
+        
+# Dibujar el marco de referencia
+def draw_reference_frame():
+    """Dibuja los ejes X e Y del marco de referencia dinámico."""
+    origin = fixed_origin if fixed_origin else custom_origin
+    pygame.draw.line(screen, RED, pymunk_to_pygame((0, 0)), pymunk_to_pygame((WIDTH, 0)), 2)  # Eje X
+    pygame.draw.line(screen, GREEN, pymunk_to_pygame((0, 0)), pymunk_to_pygame((0, HEIGHT)), 2)  # Eje Y
+    font = pygame.font.Font(None, 24)
+    origin_text = font.render(f"Origen: ({custom_origin[0]}, {custom_origin[1]})", True, BLACK)
+    screen.blit(origin_text, (10, 10))
+
+
 class Slider:
     def __init__(self, x, y, width, height, min_val, max_val, initial_val, label):
         self.rect = pygame.Rect(x, y, width, height)
@@ -129,19 +192,26 @@ class SimulacionGoldberg:
         return energia_potencial
 
     def calcular_energia_potencial_gravitacional(self):
-        m = self.slider_masa.value
-        h = self.cuerpo.position.y
-        g = self.slider_gravedad.value / 100
-        energia_potencial = m * g * h
-        return energia_potencial
+        """Calcula la energía potencial gravitacional de la esfera."""
+        m = self.cuerpo.mass  # Masa de la esfera
+        g = self.slider_gravedad.value / 100  # Gravedad ajustada
+
+        # Determinar la altura relativa al marco, ajustada por el radio de la esfera
+        if fixed_origin:
+            h = max(0, (fixed_origin[1] - self.cuerpo.position[1]) - self.slider_radio.value-8)
+        else:
+            h = max(0, (custom_origin[1] - self.cuerpo.position[1]) - self.slider_radio.value-8)
+
+        return m * g * h
 
 # Puse el / 10 xd porque yolo
 
     def calcular_energia_cinetica(self):
-        m = self.slider_masa.value
-        v = self.cuerpo.velocity.length / 10
-        energia_cinetica = 0.5 * m * (v ** 2)
-        return energia_cinetica
+        """Calcula la energía cinética de la esfera."""
+        v = self.cuerpo.velocity.length / 10  # Escalar la velocidad
+        m = self.cuerpo.mass
+        return 0.5 * m * (v ** 2)
+
 
     def calcular_fuerza(self):
         k = self.slider_k.value
@@ -154,35 +224,35 @@ class SimulacionGoldberg:
         return self.slider_masa.value * (self.slider_gravedad.value / 100)
 
     def actualizar_energias(self, delta_t):
-        """Actualizar las energías y el tiempo"""
+        """Actualizar las energías con el marco fijo."""
         self.tiempo_actual += delta_t
         energia_cinetica = self.calcular_energia_cinetica()
         energia_potencial = self.calcular_energia_potencial_gravitacional()
 
-        # Guardar datos en arrays
+        # Almacenar datos para graficar
         self.energia_cinetica_datos.append(energia_cinetica)
         self.energia_potencial_datos.append(energia_potencial)
         self.tiempo_datos.append(self.tiempo_actual)
 
 
+
 ## Funciones para mostrar información:
 
     def mostrar_posiciones(self, screen):
-        """
-        Mostrar las posiciones de los objetos (esfera, dominós, etc.) en la pantalla.
-        """
-        pos_esfera = self.cuerpo.position
-        pos_texto = self.font.render(f"Posición Esfera: ({pos_esfera.x:.1f}, {pos_esfera.y:.1f})", True, BLACK)
+        """Mostrar las posiciones de los objetos con base en el origen fijo."""
+        pos_esfera = pymunk_to_pygame(self.cuerpo.position)
+        pos_texto = self.font.render(f"Posición Esfera: ({pos_esfera[0]/10}, {pos_esfera[1]})", True, BLACK)
         screen.blit(pos_texto, (WIDTH - 500, 350))
 
-        # Posiciones de los dominós
+        # Mostrar posiciones de los dominós
         for i, domino in enumerate(self.dominoes):
-            pos_domino = domino.position
-            pos_texto = self.font.render(f"Posición Domino {i+1}: ({pos_domino.x:.1f}, {pos_domino.y:.1f})", True, BLACK)
+            pos_domino = pymunk_to_pygame(domino.position)
+            pos_texto = self.font.render(f"Posición Domino {i+1}: ({pos_domino[0]/10}, {pos_domino[1]})", True, BLACK)
             screen.blit(pos_texto, (WIDTH - 500, 400 + i * 20))
-        
+
 
     def mostrar_fuerzas(self, screen):
+        """Mostrar las fuerzas actuales en pantalla."""
         fuerza_resorte = self.calcular_fuerza()
         peso = self.calcular_peso()
         
@@ -191,6 +261,7 @@ class SimulacionGoldberg:
         
         peso_texto = self.font.render(f"Peso: {peso:.1f} N", True, BLACK)
         screen.blit(peso_texto, (WIDTH - 300, 250))
+
     
 
     def mostrar_registros(self, screen):
@@ -202,15 +273,12 @@ class SimulacionGoldberg:
             texto = self.font.render(f"{tiempo} | {pos} | {vel}", True, BLACK)
             screen.blit(texto, (700, y_pos + i * 30))
 
-    def detectar_colisiones(self):#CORREGIR LAS COLISIONES!!! Si señora, en estos días
-        """
-        Detectar las colisiones entre objetos y mostrar la información.
-        """
-        for contacto in space.collision_handlers:
-            if contacto.is_active:
-                fuerza_colision = contacto.friction  # Fuerza de fricción
-                momento_colision = contacto.elasticity  # Elasticidad del impacto
-                print(f"Colisión detectada: Fuerza = {fuerza_colision:.2f} N, Momento = {momento_colision:.2f}")
+    def detectar_colisiones(self):
+        """Detectar colisiones y mostrar información ajustada al origen fijo."""
+        for shape in space.shapes:
+            if hasattr(shape, "body") and shape.body.is_sleeping:
+                pos = pymunk_to_pygame(shape.body.position)
+                print(f"Colisión detectada en posición: {pos}")
 
     def limpiar_espacio(self):
         for body in space.bodies:
@@ -388,7 +456,7 @@ class SimulacionGoldberg:
 
     def dibujar(self, screen):
         screen.fill(WHITE)
-         
+        draw_reference_frame()  # Dibuja el marco de referencia
         # Dibujar plataformas
         pygame.draw.line(
             screen, 
@@ -430,13 +498,13 @@ class SimulacionGoldberg:
         energia_potencial_gravitacional = self.calcular_energia_potencial_gravitacional()  # Energía potencial gravitacional
         energia_cinetica = self.calcular_energia_cinetica()  # Energía cinética
         
-        energia_texto = self.font.render(f"Energia Potencial (resorte): {energia_potencial:.1f} J", True, BLACK)
+        energia_texto = self.font.render(f"Energia Potencial (resorte): {energia_potencial/10:.1f} J", True, BLACK)
         screen.blit(energia_texto, (WIDTH-500, 600))
         
-        energia_gravitacional_texto = self.font.render(f"Energia Pot. Gravitacional: {energia_potencial_gravitacional:.1f} J", True, BLACK)
+        energia_gravitacional_texto = self.font.render(f"Energia Pot. Gravitacional: {energia_potencial_gravitacional/10:.1f} J", True, BLACK)
         screen.blit(energia_gravitacional_texto, (WIDTH-500, 570))
         
-        energia_cinetica_texto = self.font.render(f"Energia Cinética: {energia_cinetica:.1f} J", True, BLACK)
+        energia_cinetica_texto = self.font.render(f"Energia Cinética: {energia_cinetica/10:.1f} J", True, BLACK)
         screen.blit(energia_cinetica_texto, (WIDTH-500, 540))
 
         # Mostrar las posiciones
@@ -467,9 +535,11 @@ class SimulacionGoldberg:
         space.debug_draw(draw_options)
 
     def setup_inicial(self):
+        global fixed_origin
         # Limpiar completamente el espacio
         self.limpiar_espacio()
-        
+        # Restablecer el origen dinámico
+        fixed_origin = None
         # Crear elementos
         self.crear_suelo()
         self.crear_esfera()
@@ -502,6 +572,8 @@ class SimulacionGoldberg:
 
 
 def main():
+    global fixed_origin  # Permite fijar el origen dinámico
+
     clock = pygame.time.Clock()
     sim = SimulacionGoldberg()
     
@@ -542,7 +614,22 @@ def main():
                             sim.crear_esfera()
                         elif slider == sim.slider_gravedad:  # Añadir esta condición
                             space.gravity = (0, sim.slider_gravedad.value)
-                
+            elif event.type == pygame.KEYDOWN:
+                # Permitir mover el marco solo antes de iniciar la simulación
+                if not sim.simulacion_iniciada:
+                    if event.key == pygame.K_UP:
+                        custom_origin[1] -= 10  # Marco sube
+                    elif event.key == pygame.K_DOWN:
+                        custom_origin[1] += 10  # Marco baja
+                    elif event.key == pygame.K_LEFT:
+                        custom_origin[0] += 10  # Marco a la izquierda
+                    elif event.key == pygame.K_RIGHT:
+                        custom_origin[0] -= 10  # Marco a la derecha
+                    elif event.key == pygame.K_RETURN:  # Fijar el origen
+                        fix_origin()
+
+
+                    
         if sim.simulacion_iniciada and not sim.simulacion_pausada:
             space.step(1/60.0)
             sim.actualizar_energias(1 / 60.0)  # Registrar energías en cada frame
